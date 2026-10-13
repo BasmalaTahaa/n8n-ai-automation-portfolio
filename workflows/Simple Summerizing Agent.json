@@ -1,0 +1,559 @@
+{
+  "updatedAt": "2026-10-12T21:14:06.324Z",
+  "createdAt": "2026-10-12T20:15:46.484Z",
+  "id": "tRddq3LmQqNTIafK",
+  "name": "My workflow",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "AI Production Assistant",
+        "formDescription": "Upload an episode script or meeting notes",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "File",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf, .txt",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Episode Script"
+                  },
+                  {
+                    "option": "Meeting Notes"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        16,
+        0
+      ],
+      "id": "c90bc4db-9481-41d7-af9c-46272149dfd0",
+      "name": "On form submission",
+      "webhookId": "47ec2386-0e16-4756-b868-d06783b8ec5b"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "File",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ],
+      "id": "2f3c2325-207a-4ad1-90e1-309ac4fc95db",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 2,
+        "output": "={{ $('On form submission').item.json.Type.toLowerCase().includes('episode') ? 0 : 1 }}"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        0
+      ],
+      "id": "03e43ae5-2200-455b-8fd1-f1312ab53e45",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview",
+          "cachedResultUrl": ""
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a production assistant for a TV drama production company.\nBelow is the transcript of a meeting. Reply in the same language as the transcript.\n\nReturn:\n1. Short summary (3-4 lines)\n2. Decisions made\n3. Action items (who, what, deadline)\n4. Open questions\n\nMeeting transcript:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        96
+      ],
+      "id": "cf504442-c20b-4b90-a452-25685161baa6",
+      "name": "Meeting Analysis",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview",
+          "cachedResultUrl": ""
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a script supervisor for a TV drama production company.\nBelow is the text of an episode script. Reply in the same language as the script.\n\nReturn:\n1. Episode summary (4-5 lines)\n2. Characters list (name + one-line description)\n3. Scene breakdown as a table with columns: Scene number | Location | INT/EXT | Day/Night | Characters in scene | One-line description\n\nScript:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        -112
+      ],
+      "id": "acd76c7a-0425-49f3-b307-41f25a0c4b7c",
+      "name": "Script Analysis",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Analysis Ready",
+        "completionMessage": "={{ $json.content.parts[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1104,
+        -112
+      ],
+      "id": "4d7a825f-c157-412f-a46f-7406e138d932",
+      "name": "Form",
+      "webhookId": "17a6da59-f300-47ce-981e-5f420a092e83"
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Script Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Meeting Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Script Analysis": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Analysis": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "a8fc3adc-337e-4f58-a2ce-94c9ffc9c4d8",
+  "activeVersionId": "96ea9449-7cf5-430d-8bcb-52a4ac78d9c1",
+  "versionCounter": 66,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "parentFolder": null,
+  "activeVersion": {
+    "updatedAt": "2026-10-12T21:13:45.000Z",
+    "createdAt": "2026-10-12T21:07:09.334Z",
+    "versionId": "96ea9449-7cf5-430d-8bcb-52a4ac78d9c1",
+    "workflowId": "tRddq3LmQqNTIafK",
+    "nodes": [
+      {
+        "parameters": {
+          "formTitle": "AI Production Assistant",
+          "formDescription": "Upload an episode script or meeting notes",
+          "formFields": {
+            "values": [
+              {
+                "fieldLabel": "File",
+                "fieldType": "file",
+                "acceptFileTypes": ".pdf, .txt",
+                "requiredField": true
+              },
+              {
+                "fieldLabel": "Type",
+                "fieldType": "dropdown",
+                "fieldOptions": {
+                  "values": [
+                    {
+                      "option": "Episode Script"
+                    },
+                    {
+                      "option": "Meeting Notes"
+                    }
+                  ]
+                },
+                "requiredField": true
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.formTrigger",
+        "typeVersion": 2.6,
+        "position": [
+          16,
+          0
+        ],
+        "id": "c90bc4db-9481-41d7-af9c-46272149dfd0",
+        "name": "On form submission",
+        "webhookId": "47ec2386-0e16-4756-b868-d06783b8ec5b"
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "binaryPropertyName": "File",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          240,
+          0
+        ],
+        "id": "2f3c2325-207a-4ad1-90e1-309ac4fc95db",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "mode": "expression",
+          "numberOutputs": 2,
+          "output": "={{ $('On form submission').item.json.Type.toLowerCase().includes('episode') ? 0 : 1 }}"
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          464,
+          0
+        ],
+        "id": "03e43ae5-2200-455b-8fd1-f1312ab53e45",
+        "name": "Switch"
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "models/gemini-3-flash-preview",
+            "mode": "list",
+            "cachedResultName": "models/gemini-3-flash-preview",
+            "cachedResultUrl": ""
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "=You are a production assistant for a TV drama production company.\nBelow is the transcript of a meeting. Reply in the same language as the transcript.\n\nReturn:\n1. Short summary (3-4 lines)\n2. Decisions made\n3. Action items (who, what, deadline)\n4. Open questions\n\nMeeting transcript:\n{{ $json.text }}"
+              }
+            ]
+          },
+          "builtInTools": {},
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.googleGemini",
+        "typeVersion": 1.2,
+        "position": [
+          688,
+          96
+        ],
+        "id": "cf504442-c20b-4b90-a452-25685161baa6",
+        "name": "Meeting Analysis",
+        "credentials": {
+          "googlePalmApi": {
+            "id": null,
+            "name": "",
+            "__aiGatewayManaged": true
+          }
+        }
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "models/gemini-3-flash-preview",
+            "mode": "list",
+            "cachedResultName": "models/gemini-3-flash-preview",
+            "cachedResultUrl": ""
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "=You are a script supervisor for a TV drama production company.\nBelow is the text of an episode script. Reply in the same language as the script.\n\nReturn:\n1. Episode summary (4-5 lines)\n2. Characters list (name + one-line description)\n3. Scene breakdown as a table with columns: Scene number | Location | INT/EXT | Day/Night | Characters in scene | One-line description\n\nScript:\n{{ $json.text }}"
+              }
+            ]
+          },
+          "builtInTools": {},
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.googleGemini",
+        "typeVersion": 1.2,
+        "position": [
+          736,
+          -112
+        ],
+        "id": "acd76c7a-0425-49f3-b307-41f25a0c4b7c",
+        "name": "Script Analysis",
+        "credentials": {
+          "googlePalmApi": {
+            "id": null,
+            "name": "",
+            "__aiGatewayManaged": true
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "completion",
+          "completionTitle": "Analysis Ready",
+          "completionMessage": "={{ $json.content.parts[0].text }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.form",
+        "typeVersion": 2.5,
+        "position": [
+          1104,
+          -112
+        ],
+        "id": "4d7a825f-c157-412f-a46f-7406e138d932",
+        "name": "Form",
+        "webhookId": "17a6da59-f300-47ce-981e-5f420a092e83"
+      }
+    ],
+    "connections": {
+      "On form submission": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Switch",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch": {
+        "main": [
+          [
+            {
+              "node": "Script Analysis",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Meeting Analysis",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Script Analysis": {
+        "main": [
+          [
+            {
+              "node": "Form",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Meeting Analysis": {
+        "main": [
+          [
+            {
+              "node": "Form",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Basmala Taha",
+    "name": "ai-production-assistant",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-10-12T21:13:45.266Z",
+        "id": 1,
+        "workflowId": "tRddq3LmQqNTIafK",
+        "versionId": "96ea9449-7cf5-430d-8bcb-52a4ac78d9c1",
+        "event": "activated",
+        "userId": "ad1a956e-da8e-43c6-94c3-a6660a3c7805"
+      },
+      {
+        "createdAt": "2026-10-12T21:13:58.050Z",
+        "id": 3,
+        "workflowId": "tRddq3LmQqNTIafK",
+        "versionId": "96ea9449-7cf5-430d-8bcb-52a4ac78d9c1",
+        "event": "activated",
+        "userId": "ad1a956e-da8e-43c6-94c3-a6660a3c7805"
+      },
+      {
+        "createdAt": "2026-10-12T21:13:58.049Z",
+        "id": 2,
+        "workflowId": "tRddq3LmQqNTIafK",
+        "versionId": "96ea9449-7cf5-430d-8bcb-52a4ac78d9c1",
+        "event": "deactivated",
+        "userId": "ad1a956e-da8e-43c6-94c3-a6660a3c7805"
+      }
+    ]
+  },
+  "homeProject": {
+    "id": "OG1e7fWgxdE5VKCn",
+    "type": "personal",
+    "name": "Basmala Taha <basmalatadeshish@gmail.com>",
+    "icon": null
+  },
+  "sharedWithProjects": [],
+  "usedCredentials": [
+    {
+      "id": "jx2Ca8GuQjYyQNbo",
+      "name": "Google Gemini(PaLM) Api account",
+      "type": "googlePalmApi",
+      "currentUserHasAccess": true,
+      "homeProject": {
+        "id": "OG1e7fWgxdE5VKCn",
+        "type": "personal",
+        "name": "Basmala Taha <basmalatadeshish@gmail.com>",
+        "icon": null
+      },
+      "sharedWithProjects": []
+    }
+  ],
+  "scopes": [
+    "execution:delete",
+    "execution:list",
+    "execution:read",
+    "execution:reveal",
+    "workflow:create",
+    "workflow:delete",
+    "workflow:disableRedaction",
+    "workflow:enableRedaction",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:export",
+    "workflow:import",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update"
+  ],
+  "checksum": "7f8750934f2212a2359961644c4d718b73d37556a26abbd957cf1f9614bc30e9"
+}

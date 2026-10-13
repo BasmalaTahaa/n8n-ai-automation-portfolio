@@ -1,0 +1,688 @@
+{
+  "name": "Monthly Report Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtDayOfMonth": 5,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "c14d314c-a64a-4b6f-b664-344ba48c8b12",
+      "name": "Day 5 at 09:00 - Monthly Digest",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -240,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $now.setZone('Africa/Cairo').minus({ months: 1 });\nreturn [{ json: { month: prev.toFormat('yyyy-MM'), monthLabel: prev.toFormat('MMMM yyyy') } }];"
+      },
+      "id": "81a0d125-01e3-4cee-aff1-f8f0b2726ca7",
+      "name": "Compute Previous Month (Digest)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Members"
+        },
+        "options": {}
+      },
+      "id": "3e1a3d2f-90e1-45e8-845e-2c2babb3bd67",
+      "name": "Read Members (Digest)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        304,
+        176
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Monthly Submissions"
+        },
+        "options": {}
+      },
+      "id": "f184287a-9ef5-495a-9aae-9e7342eda84d",
+      "name": "Read Submissions (Digest)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        176
+      ],
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const month = $('Compute Previous Month (Digest)').first().json.month;\nconst monthLabel = $('Compute Previous Month (Digest)').first().json.monthLabel;\nconst isReal = (j) => j && Object.keys(j).length > 0;\nconst members = $('Read Members (Digest)').all().map(i => i.json).filter(j => isReal(j) && j.email);\nconst subs = $('Read Submissions (Digest)').all().map(i => i.json).filter(j => isReal(j) && j.member_email);\nconst esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst splitLinks = (s) => String(s || '').split(/[\\s,;]+/).filter(x => x.startsWith('http'));\nconst rows = members.map(m => {\n  const email = String(m.email).trim().toLowerCase();\n  const mine = subs\n    .filter(s => String(s.member_email).trim().toLowerCase() === email && String(s.month).trim().slice(0, 7) === month)\n    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));\n  const s = mine[0];\n  return {\n    name: m.name,\n    email: m.email,\n    submitted: !!s,\n    submission_date: s ? String(s.timestamp) : '',\n    report_file: s ? String(s.report_file || '') : '',\n    other_files: s ? splitLinks(s.other_files) : [],\n  };\n});\nconst submitted = rows.filter(r => r.submitted);\nconst missing = rows.filter(r => !r.submitted);\nconst total = rows.length;\nconst tr = rows.map(r => {\n  const report = r.report_file ? '<a href=\"' + esc(r.report_file) + '\">Report</a>' : '-';\n  const others = r.other_files.length ? r.other_files.map((l, i) => '<a href=\"' + esc(l) + '\">File ' + (i + 1) + '</a>').join(', ') : '-';\n  const status = r.submitted ? '<span style=\"color:#1a7f37\">Submitted</span>' : '<span style=\"color:#cf222e\">Missing</span>';\n  return '<tr><td style=\"padding:6px;border:1px solid #ddd\">' + esc(r.name) + '</td><td style=\"padding:6px;border:1px solid #ddd\">' + status + '</td><td style=\"padding:6px;border:1px solid #ddd\">' + report + '</td><td style=\"padding:6px;border:1px solid #ddd\">' + others + '</td></tr>';\n}).join('');\nconst intro = submitted.length === 0\n  ? '<p><b>Nobody has submitted a report for ' + esc(monthLabel) + ' yet.</b></p>'\n  : '<p>' + submitted.length + ' of ' + total + ' members submitted for ' + esc(monthLabel) + '.</p>';\nconst html = '<div style=\"font-family:Arial,sans-serif\">' + '<h2>Monthly reports - ' + esc(monthLabel) + '</h2>' + intro +\n  '<table style=\"border-collapse:collapse\"><thead><tr><th style=\"padding:6px;border:1px solid #ddd;background:#f6f8fa\">Member</th><th style=\"padding:6px;border:1px solid #ddd;background:#f6f8fa\">Status</th><th style=\"padding:6px;border:1px solid #ddd;background:#f6f8fa\">Report link</th><th style=\"padding:6px;border:1px solid #ddd;background:#f6f8fa\">Other files</th></tr></thead><tbody>' + tr + '</tbody></table></div>';\nconst telegramText = 'Monthly reports ' + month + ': ' + submitted.length + '/' + total + ' submitted.' +\n  (submitted.length === 0 ? ' Nobody has submitted yet.' : '') +\n  (missing.length ? '\\nMissing: ' + missing.map(r => r.name).join(', ') : '\\nEveryone submitted.');\nconst summaryInput = 'Month: ' + month + '. Submitted ' + submitted.length + ' of ' + total + '. Submitted members: ' + (submitted.map(r => r.name).join(', ') || 'none') + '. Missing members: ' + (missing.map(r => r.name).join(', ') || 'none') + '.';\nreturn [{ json: { month, monthLabel, total, submittedCount: submitted.length, missingCount: missing.length, submitted, missing, rows, html, telegramText, summaryInput } }];"
+      },
+      "id": "a0106ea4-baf3-4157-8122-b9f453585b95",
+      "name": "Build Digest Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a short 3-4 line English summary for the professor of the monthly report submissions. Use ONLY this structured data (names and counts), do not invent anything:\n{{ $('Build Digest Data').first().json.summaryInput }}",
+        "batching": {}
+      },
+      "id": "16977f1d-25fd-44db-8c77-d869e7dfa150",
+      "name": "Gemini Summary (optional)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1248,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "dce72a57-c3c9-4f19-b223-cb3342c90a56",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        224
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "Gemini account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_PROFESSOR_EMAIL",
+        "subject": "=Monthly reports {{ $('Build Digest Data').first().json.month }}: {{ $('Build Digest Data').first().json.submittedCount }}/{{ $('Build Digest Data').first().json.total }} submitted",
+        "message": "={{ ($json.text ? '<p><i>' + $json.text + '</i></p>' : '') + $('Build Digest Data').first().json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a3e59463-513d-4b6a-bd69-13c6fe6d7146",
+      "name": "Email Digest To Professor",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": null,
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $('Build Digest Data').first().json.telegramText }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "562c0bac-3bf7-40b9-9857-90b25de9ef3a",
+      "name": "Telegram Digest Totals",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1824,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtDayOfMonth": 10,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "812efb13-622f-4c38-b598-24318e61895b",
+      "name": "Day 10 at 09:00 - Reminders (disable to turn off)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -176,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $now.setZone('Africa/Cairo').minus({ months: 1 });\nreturn [{ json: { month: prev.toFormat('yyyy-MM'), monthLabel: prev.toFormat('MMMM yyyy') } }];"
+      },
+      "id": "4f08310e-dbc7-4929-baba-75480e61aa28",
+      "name": "Compute Previous Month (Reminders)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Members"
+        },
+        "options": {}
+      },
+      "id": "401edcb0-d3ac-45c5-bf89-271feb793166",
+      "name": "Read Members (Reminders)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        672
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Monthly Submissions"
+        },
+        "options": {}
+      },
+      "id": "c15ecfdd-7e7d-4675-90d0-8c1a87bedffb",
+      "name": "Read Submissions (Reminders)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        672
+      ],
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const month = $('Compute Previous Month (Reminders)').first().json.month;\nconst monthLabel = $('Compute Previous Month (Reminders)').first().json.monthLabel;\nconst isReal = (j) => j && Object.keys(j).length > 0;\nconst members = $('Read Members (Reminders)').all().map(i => i.json).filter(j => isReal(j) && j.email);\nconst subs = $('Read Submissions (Reminders)').all().map(i => i.json).filter(j => isReal(j) && j.member_email);\nconst missing = members.filter(m => !subs.some(s => String(s.member_email).trim().toLowerCase() === String(m.email).trim().toLowerCase() && String(s.month).trim().slice(0, 7) === month));\nif (missing.length === 0) {\n  return [{ json: { anyMissing: false, month, monthLabel, missingCount: 0, missingNames: '' } }];\n}\nconst names = missing.map(m => m.name).join(', ');\nreturn missing.map(m => ({ json: { anyMissing: true, month, monthLabel, name: m.name, email: m.email, missingCount: missing.length, missingNames: names } }));"
+      },
+      "id": "8440ba49-c051-4cce-9055-4173ac657cc2",
+      "name": "Find Non-Submitters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "any-missing",
+              "leftValue": "={{ $json.anyMissing }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fd60a857-43d5-460c-ab32-218c78a47ee4",
+      "name": "Anyone Missing?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1328,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Reminder: please submit your {{ $json.monthLabel }} report",
+        "message": "=<p>Dear {{ $json.name }},</p><p>This is a friendly reminder to submit your monthly report for <b>{{ $json.monthLabel }}</b> using the lab submission form.</p><p>Thank you.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "d29f8200-f212-44b4-9664-bd8140159099",
+      "name": "Email Reminder To Member",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        576
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": null,
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ 'Reminders sent for ' + $('Find Non-Submitters').first().json.month + ' to ' + $('Find Non-Submitters').first().json.missingCount + ' member(s): ' + $('Find Non-Submitters').first().json.missingNames }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "9978b790-d5b6-4a75-85d4-dde2d72499c5",
+      "name": "Telegram Reminders Sent Note",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1776,
+        576
+      ],
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ 'No reminders needed: everyone submitted their ' + $json.month + ' report.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "91816870-cad9-4e55-a1aa-9f53948b801f",
+      "name": "Telegram Everyone Submitted Note",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        768
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Monthly Report Digest\nPath A (day 5, 09:00 Africa/Cairo): reads Members + Monthly Submissions, builds a per-member table for the previous month, optional Gemini summary (names/counts/links only), emails the professor (Gmail HTML) and sends totals + missing list on Telegram. If nobody submitted, it still sends the report.\nPath B (day 10, 09:00): emails reminders to members who have not submitted, then notes it on Telegram. To turn this path off, disable the trigger \"Day 10 at 09:00 - Reminders\" (right-click > Deactivate).\n\n**Configure:**\n- Credentials: Google Sheets OAuth2, Gmail OAuth2, Telegram bot, Google Gemini API key.\n- Replace YOUR_PROFESSOR_EMAIL and YOUR_TELEGRAM_CHAT_ID in the Gmail/Telegram nodes.\n- Pick spreadsheet \"Lab Assistant\" (YOUR_SHEET_ID) in every Sheets node. Tabs: Members (name|email|team|role), Monthly Submissions (timestamp|member_email|member_name|month|report_file|other_files).\n- Set the workflow timezone to Africa/Cairo in Settings (schedule hours use it).\n- Gemini node is optional: if it fails the email still goes out.\n- Attach \"Lab Assistant - Error Alert\" in Settings > Error workflow; publish the workflow.\n\n---\nThis template was made by Basmala Taha",
+        "height": 480,
+        "width": 560,
+        "color": 3
+      },
+      "id": "41b3fddd-ab9d-472a-987c-0dd75f82b3fa",
+      "name": "Sticky Note - Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        224
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Day 5 at 09:00 - Monthly Digest": {
+      "main": [
+        [
+          {
+            "node": "Compute Previous Month (Digest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Previous Month (Digest)": {
+      "main": [
+        [
+          {
+            "node": "Read Members (Digest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Members (Digest)": {
+      "main": [
+        [
+          {
+            "node": "Read Submissions (Digest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Submissions (Digest)": {
+      "main": [
+        [
+          {
+            "node": "Build Digest Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Digest Data": {
+      "main": [
+        [
+          {
+            "node": "Gemini Summary (optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Summary (optional)": {
+      "main": [
+        [
+          {
+            "node": "Email Digest To Professor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Summary (optional)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Digest To Professor": {
+      "main": [
+        [
+          {
+            "node": "Telegram Digest Totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day 10 at 09:00 - Reminders (disable to turn off)": {
+      "main": [
+        [
+          {
+            "node": "Compute Previous Month (Reminders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Previous Month (Reminders)": {
+      "main": [
+        [
+          {
+            "node": "Read Members (Reminders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Members (Reminders)": {
+      "main": [
+        [
+          {
+            "node": "Read Submissions (Reminders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Submissions (Reminders)": {
+      "main": [
+        [
+          {
+            "node": "Find Non-Submitters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Non-Submitters": {
+      "main": [
+        [
+          {
+            "node": "Anyone Missing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anyone Missing?": {
+      "main": [
+        [
+          {
+            "node": "Email Reminder To Member",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Everyone Submitted Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Reminder To Member": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reminders Sent Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Africa/Cairo"
+  },
+  "meta": {},
+  "nodeGroups": [
+    {
+      "id": "c77bbe90-3784-4dc2-a260-6002d1ab9bec",
+      "name": "Collect submissions",
+      "nodeIds": [
+        "81a0d125-01e3-4cee-aff1-f8f0b2726ca7",
+        "3e1a3d2f-90e1-45e8-845e-2c2babb3bd67",
+        "f184287a-9ef5-495a-9aae-9e7342eda84d",
+        "a0106ea4-baf3-4157-8122-b9f453585b95"
+      ],
+      "description": "Day-5 run: finds last month, reads members and submissions, builds the per-member status table"
+    },
+    {
+      "id": "9b8b137a-a484-4bc0-9480-f97dccd54d00",
+      "name": "Deliver digest",
+      "nodeIds": [
+        "16977f1d-25fd-44db-8c77-d869e7dfa150",
+        "dce72a57-c3c9-4f19-b223-cb3342c90a56",
+        "a3e59463-513d-4b6a-bd69-13c6fe6d7146",
+        "562c0bac-3bf7-40b9-9857-90b25de9ef3a"
+      ],
+      "description": "Adds an optional AI summary, emails the HTML table to the professor and posts totals on Telegram"
+    },
+    {
+      "id": "b78301d3-39ba-4000-9d24-09d2b9d3aefa",
+      "name": "Find non-submitters",
+      "nodeIds": [
+        "4f08310e-dbc7-4929-baba-75480e61aa28",
+        "401edcb0-d3ac-45c5-bf89-271feb793166",
+        "c15ecfdd-7e7d-4675-90d0-8c1a87bedffb",
+        "8440ba49-c051-4cce-9055-4173ac657cc2"
+      ],
+      "description": "Day-10 run: works out which members still have no report for last month"
+    },
+    {
+      "id": "258db132-bfdc-4a83-8116-c98a74cf8b1f",
+      "name": "Send reminders",
+      "nodeIds": [
+        "fd60a857-43d5-460c-ab32-218c78a47ee4",
+        "d29f8200-f212-44b4-9664-bd8140159099",
+        "9978b790-d5b6-4a75-85d4-dde2d72499c5",
+        "91816870-cad9-4e55-a1aa-9f53948b801f"
+      ],
+      "description": "Emails each missing member, then tells the professor reminders went out (or that no one was missing)"
+    }
+  ],
+  "tags": []
+}

@@ -1,0 +1,736 @@
+{
+  "name": "Lab Meeting Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "78a889da-e6f6-44b1-a1d6-b9b1dd7c1f0b",
+      "name": "Telegram Message Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        112
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "chat-id-check",
+              "leftValue": "={{ String($json.message.chat.id) }}",
+              "rightValue": "YOUR_TELEGRAM_CHAT_ID",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7dfc9a42-3580-4b67-a74b-a8933d112e52",
+      "name": "Is Professor Chat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        272,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Message Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "=You are a scheduling assistant for a professor (Dr.) running a research lab. Today's date/time: {{ $now.setZone('Africa/Cairo').toFormat(\"cccc, yyyy-MM-dd HH:mm\") }} (Africa/Cairo).\n\nLANGUAGE: Always reply in the same language the professor writes in (Arabic or English). Keep replies short.\n\nPRIVACY: Only use names, emails and meeting details. Never handle file contents or other personal data.\n\nSCHEDULING a meeting with a team:\n1. Look up the team's members and emails ONLY with the read_members tool (Members sheet: name, email, team, role). NEVER guess or invent emails. If the team name is ambiguous or matches nothing, ask a short question listing the available team names.\n2. If date, time, duration or team is missing or ambiguous, ask ONE short follow-up question.\n3. Defaults: duration 30 minutes, timezone Africa/Cairo, unless told otherwise. Use ISO 8601 with the +02:00/+03:00 Cairo offset.\n4. BEFORE creating anything, show a short summary (team, number of members, date/time, duration, title) and ask the professor to confirm. Do nothing until a clear \"yes/confirm/تمام/أكد\".\n5. After confirmation, call create_event_with_meet ONCE with ALL team member emails as attendees (this creates a Google Meet link and sends invitation emails).\n6. Then call append_meetings_log with timestamp, team, title, start, end, attendees (comma-separated), meet_link (from the event's hangoutLink), status \"scheduled\".\n7. Reply with the Meet link, the time and the list of attendees.\nIf the professor declines the confirmation, do not create anything; acknowledge and offer to change details.\n\nRESCHEDULING: find the meeting by team/title/date with read_meetings_log (use get_events to find the calendar event id if needed). Show the proposed new time and ask for confirmation. Then call update_event (attendees are notified), update the row with update_meetings_log_row (status \"rescheduled\"), and reply with the new time.\n\nCANCELLING: find the meeting the same way, ask for confirmation, then call delete_event (attendees are notified) and update_meetings_log_row with status \"cancelled\". Confirm to the professor.\n\nNever create duplicate events. If a tool fails, tell the professor briefly and do not retry blindly.",
+          "maxIterations": 12
+        }
+      },
+      "id": "8bc621cc-95e8-450e-aed3-182f68515319",
+      "name": "Lab Scheduling Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1264,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "9d81a779-9f02-4dd4-862c-d4c7e8fd9688",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "Gemini account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Message Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "id": "0ea79ac3-2be6-42ee-8af0-59d32e2b8e39",
+      "name": "Simple Memory (10 messages)",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        880,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Members"
+        },
+        "options": {}
+      },
+      "id": "7a968073-4bd3-4205-aa1a-7a61a85ca665",
+      "name": "read_members",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1008,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Meetings Log"
+        },
+        "options": {}
+      },
+      "id": "28611fbe-7929-4d71-b967-01d4e446bfe8",
+      "name": "read_meetings_log",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1136,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Meetings Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('timestamp', 'Current ISO timestamp when the meeting was created') }}",
+            "team": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('team', 'Team name') }}",
+            "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('title', 'Meeting title') }}",
+            "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start', 'Start date-time ISO 8601') }}",
+            "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('end', 'End date-time ISO 8601') }}",
+            "attendees": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('attendees', 'Comma-separated attendee emails') }}",
+            "meet_link": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('meet_link', 'Google Meet link of the event') }}",
+            "status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('status', 'Meeting status, e.g. scheduled') }}"
+          },
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "team",
+              "displayName": "team",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "start",
+              "displayName": "start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "end",
+              "displayName": "end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "attendees",
+              "displayName": "attendees",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "meet_link",
+              "displayName": "meet_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2fcaa980-134a-4f18-a014-d61671698337",
+      "name": "append_meetings_log",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1264,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Meetings Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "meet_link"
+          ],
+          "value": {
+            "meet_link": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('meet_link', 'Meet link identifying the row to update') }}",
+            "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start', 'New start date-time ISO 8601 (keep old value if unchanged)') }}",
+            "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('end', 'New end date-time ISO 8601 (keep old value if unchanged)') }}",
+            "status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('status', 'New status: scheduled, rescheduled or cancelled') }}"
+          },
+          "schema": [
+            {
+              "id": "meet_link",
+              "displayName": "meet_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "start",
+              "displayName": "start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "end",
+              "displayName": "end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "76452fca-a169-474f-9ee8-481dbffa97a0",
+      "name": "update_meetings_log_row",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1392,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select professor calendar (YOUR_CALENDAR_ID)"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start', 'Start date-time ISO 8601 with Africa/Cairo offset') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('end', 'End date-time ISO 8601 with Africa/Cairo offset') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('attendees', 'Comma-separated attendee emails taken from the Members sheet') }}"
+          ],
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          },
+          "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('description', 'Short agenda') }}",
+          "sendUpdates": "all",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('title', 'Meeting title') }}"
+        }
+      },
+      "id": "a3f2b428-c78d-4eef-8508-4d2a21532639",
+      "name": "create_event_with_meet",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1520,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select professor calendar (YOUR_CALENDAR_ID)"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('event_id', 'Google Calendar event id') }}",
+        "updateFields": {
+          "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('end', 'New end date-time ISO 8601') }}",
+          "sendUpdates": "all",
+          "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start', 'New start date-time ISO 8601') }}"
+        }
+      },
+      "id": "cd166705-c064-464a-a5aa-5bf9c4dadf09",
+      "name": "update_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1648,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select professor calendar (YOUR_CALENDAR_ID)"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('event_id', 'Google Calendar event id') }}",
+        "options": {
+          "sendUpdates": "all"
+        }
+      },
+      "id": "35893e74-d4bf-44af-889f-8f3446311720",
+      "name": "delete_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1776,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select professor calendar (YOUR_CALENDAR_ID)"
+        },
+        "limit": 20,
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('time_min', 'Lower bound ISO 8601') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('time_max', 'Upper bound ISO 8601') }}",
+        "options": {
+          "orderBy": "startTime"
+        }
+      },
+      "id": "2422b597-5edf-40c5-bc7d-32edcced0e40",
+      "name": "get_events",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1904,
+        336
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Message Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e08dbb1d-9ae1-4fd9-b7b2-70cccc61ad8a",
+      "name": "Reply To Professor",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2112,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Sorry, this assistant is private and can only be used by the lab professor. / عذرا، هذا المساعد خاص بالأستاذ الدكتور فقط.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "8f49d4ae-1504-4049-b81c-698cf38a02fc",
+      "name": "Send Polite Refusal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        496,
+        224
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Lab Meeting Bot\nthis is some notes you must configure \nTelegram scheduling assistant for the professor (Gemini agent + Google Sheets + Google Calendar/Meet)\n1. Credentials: Telegram bot token, Google Gemini API key, Google OAuth2 for Sheets and Calendar.\n2. In \"Is Professor Chat?\" replace YOUR_TELEGRAM_CHAT_ID with your numeric chat id.\n3. In every Google Sheets tool pick the spreadsheet \"Lab Assistant\" (YOUR_SHEET_ID); tabs: Members (name|email|team|role), Meetings Log (timestamp|team|title|start|end|attendees|meet_link|status).\n4. In every Google Calendar tool pick the calendar (YOUR_CALENDAR_ID).\n5. Meet link = Additional Field \"Conference Data\" (solution Google Meet) in create_event_with_meet; invitation emails = \"Send Updates: all\". Verify the conference option in the node UI.\n6. Publish the workflow: Telegram Trigger only works when published, and one bot can have only one Telegram trigger.\n7. Settings > Error workflow: attach \"Lab Assistant - Error Alert\".\n\nThis Template made by Basmala Taha ",
+        "height": 420,
+        "width": 520,
+        "color": 3
+      },
+      "id": "3f5045cb-0129-4af6-86d5-eb133617ce5b",
+      "name": "Sticky Note - Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        976,
+        -384
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Message Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Professor Chat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Professor Chat?": {
+      "main": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Polite Refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lab Scheduling Agent": {
+      "main": [
+        [
+          {
+            "node": "Reply To Professor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory (10 messages)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read_members": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read_meetings_log": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "append_meetings_log": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_meetings_log_row": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_event_with_meet": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_events": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lab Scheduling Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {},
+  "nodeGroups": [],
+  "tags": []
+}

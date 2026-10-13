@@ -1,0 +1,59 @@
+{
+  "name": "Lab Assistant - Error Alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e1000000-0000-4000-8000-000000000001",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ ('Workflow failed: ' + (.workflow && .workflow.name || 'unknown') + '\nNode: ' + (.execution && .execution.lastNodeExecuted || 'unknown') + '\nError: ' + (.execution && .execution.error && .execution.error.message || 'unknown')).replace(/[_*`\\[\\]]/g, ' ') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e1000000-0000-4000-8000-000000000002",
+      "name": "Telegram Error Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Telegram Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {},
+  "tags": []
+}

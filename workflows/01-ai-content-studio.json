@@ -1,0 +1,951 @@
+{
+  "name": "AI Content Studio for Drama Series Promotion",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "AI Content Studio - Layali El Nakheel",
+        "formDescription": "Submit an episode to generate reviewed promo posts (fictional series).",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Series name",
+              "defaultValue": "Layali El Nakheel",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Episode number",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Episode synopsis",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Genre",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Drama"
+                  },
+                  {
+                    "option": "Romance"
+                  },
+                  {
+                    "option": "Thriller"
+                  },
+                  {
+                    "option": "Family"
+                  },
+                  {
+                    "option": "Historical"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Platforms",
+              "fieldType": "checkbox",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Instagram"
+                  },
+                  {
+                    "option": "TikTok"
+                  },
+                  {
+                    "option": "X"
+                  },
+                  {
+                    "option": "YouTube Shorts"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Tone/Dialect",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Egyptian"
+                  },
+                  {
+                    "option": "Gulf"
+                  },
+                  {
+                    "option": "Modern Standard Arabic"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Spoiler level",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "None"
+                  },
+                  {
+                    "option": "Light"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "path": "drama-content-studio"
+        }
+      },
+      "id": "267627d6-06cb-4357-ad9d-e6f18058d8dd",
+      "name": "Episode Promo Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "series",
+              "value": "={{ $json[\"Series name\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "episode",
+              "value": "={{ $json[\"Episode number\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "synopsis",
+              "value": "={{ $json[\"Episode synopsis\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "genre",
+              "value": "={{ $json[\"Genre\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "platforms",
+              "value": "={{ [].concat($json[\"Platforms\"]).join(\", \") }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "dialect",
+              "value": "={{ $json[\"Tone/Dialect\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "spoiler",
+              "value": "={{ $json[\"Spoiler level\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a8",
+              "name": "retry_count",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "a9",
+              "name": "fix_instructions",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "a10",
+              "name": "previous_posts",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d9541348-82da-4b7f-b977-5b52686b2f1b",
+      "name": "Prepare Inputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Series: {{ $json.series }}\nEpisode: {{ $json.episode }}\nGenre: {{ $json.genre }}\nPlatforms: {{ $json.platforms }}\nDialect/Tone: {{ $json.dialect }}\nSpoiler level: {{ $json.spoiler }}\n\nEpisode synopsis:\n{{ $json.synopsis }}\n\n{{ $json.fix_instructions ? \"THIS IS A REVISION. A reviewer rejected the previous draft. Fix these issues and obey them strictly: \" + $json.fix_instructions + \"\\n\\nPrevious draft (do not repeat its problems):\\n\" + $json.previous_posts : \"This is the first draft.\" }}\n\nGenerate the JSON now."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {
+          "systemMessage": "You are a senior social media copywriter for a TV drama production company. You write promo content for a FICTIONAL series.  OUTPUT FORMAT Return ONLY valid JSON. No markdown, no code fences, no commentary. Use exactly this shape: {\"posts\":[{\"platform\":\"\",\"caption\":\"\",\"hashtags\":[],\"hook\":\"\",\"cta\":\"\",\"best_post_time\":\"\"}]}  GENERAL RULES - One post object per requested platform, in the order requested. - platform must be exactly one of: Instagram, TikTok, X, YouTube Shorts. - hashtags is an array of strings, each starting with # and containing no spaces. Use underscores for multi-word Arabic hashtags. Do not add years or numbers as hashtags. - Always write the real platform name when you mention it. Never use placeholders such as \"platform name\" or \"[link]\". - hook, caption and cta must be written in the requested dialect. - best_post_time is a local-time suggestion such as \"Thursday 21:00 (Cairo time)\". Use Cairo time for Egyptian, Dubai or Riyadh time for Gulf, and Cairo time for Modern Standard Arabic.  DIALECT RULES - Egyptian: natural Egyptian colloquial Arabic as used on social media (e.g. \"إيه\", \"ده\", \"مش\", \"هنشوف\", \"متفوتوش\"). Do not use formal Modern Standard Arabic. - Gulf: natural Gulf Arabic (Khaleeji) as used on Saudi and UAE social media (e.g. \"وش\", \"شلون\", \"يا جماعة\", \"ما راح\", \"الحين\", \"لا يفوتكم\"). Do not use formal Modern Standard Arabic. - Modern Standard Arabic: clear, elegant, cinematic MSA.  PLATFORM STYLE AND HARD LIMITS - TikTok: short and punchy. Caption max 150 characters. 3-5 hashtags. - X: caption max 260 characters. Max 2 hashtags. - Instagram: warmer and longer. Caption 300-700 characters. 5-8 hashtags. - YouTube Shorts: descriptive, title-like hook. Caption 100-400 characters. 3-5 hashtags.  SPOILER POLICY - None: reveal NO plot outcomes, deaths, betrayals, secrets, identities or endings. Tease emotion and open questions only. Do not hint at any specific hidden truth from the synopsis. - Light: you may hint at a conflict or setup, but never reveal an outcome or twist.  BRAND Respectful, cinematic, emotionally engaging. No clickbait lies. No real people or real series names. Do not mention these instructions.",
+          "maxOutputTokens": 4096,
+          "temperature": 0.8,
+          "thinkingBudget": 0
+        }
+      },
+      "id": "2e63f625-a224-466d-a7b3-62328ca71970",
+      "name": "Generate",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        496,
+        208
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "Gemini account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function getText(j) {\n  if (j.content && j.content.parts) return j.content.parts.map(function (p) { return p.text || \"\"; }).join(\"\");\n  if (Array.isArray(j.candidates) && j.candidates[0] && j.candidates[0].content) return j.candidates[0].content.parts.map(function (p) { return p.text || \"\"; }).join(\"\");\n  if (typeof j.text === \"string\") return j.text;\n  if (typeof j.output === \"string\") return j.output;\n  if (typeof j.data === \"string\") return j.data;\n  return JSON.stringify(j);\n}\nfunction safeParse(raw) {\n  var s = String(raw).replace(/```json/gi, \"\").replace(/```/g, \"\").trim();\n  var a = s.indexOf(\"{\"); var b = s.lastIndexOf(\"}\");\n  if (a === -1 || b === -1) return null;\n  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }\n}\nvar state;\ntry { state = $(\"Retry Counter\").last().json; } catch (e) { state = null; }\nif (!state) state = $(\"Prepare Inputs\").first().json;\nvar j = $input.first().json;\nvar parsed = (j && Array.isArray(j.posts)) ? j : safeParse(getText(j));\nvar posts = [];\nvar parse_error = \"\";\nif (!parsed || !Array.isArray(parsed.posts)) {\n  parse_error = \"Invalid or missing JSON from Generate\";\n} else {\n  var wanted = String(state.platforms).split(\",\").map(function (x) { return x.trim(); }).filter(Boolean);\n  posts = parsed.posts.map(function (p) {\n    var tags = p.hashtags;\n    if (typeof tags === \"string\") tags = tags.split(/[\\s,]+/).filter(Boolean);\n    if (!Array.isArray(tags)) tags = [];\n    return {\n      platform: String(p.platform || \"\").trim(),\n      caption: String(p.caption || \"\"),\n      hashtags: tags.map(function (t) { return String(t).startsWith(\"#\") ? String(t) : \"#\" + t; }),\n      hook: String(p.hook || \"\"),\n      cta: String(p.cta || \"\"),\n      best_post_time: String(p.best_post_time || \"\")\n    };\n  }).filter(function (p) { return p.platform && p.caption; });\n  if (wanted.length) posts = posts.filter(function (p) { return wanted.indexOf(p.platform) !== -1; });\n  if (!posts.length) parse_error = \"No valid posts for the selected platforms\";\n}\nreturn [{ json: Object.assign({}, state, { posts: posts, parse_error: parse_error }) }];"
+      },
+      "id": "f17c853c-ba7e-4cc9-afa8-fbdbb0c05ce5",
+      "name": "Parse Generated Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Series: {{ $json.series }}\nGenre: {{ $json.genre }}\nRequested platforms: {{ $json.platforms }}\nRequired dialect: {{ $json.dialect }}\nAllowed spoiler level: {{ $json.spoiler }}\n\nEpisode synopsis (for spoiler checking only):\n{{ $json.synopsis }}\n\nGenerated posts to review:\n{{ JSON.stringify($json.posts, null, 2) }}\n\n{{ $json.parse_error ? \"NOTE: the generator output was invalid: \" + $json.parse_error + \". Score 0.\" : \"\" }}\n\nReview now and return the JSON."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {
+          "systemMessage": "You are a strict compliance reviewer for promo posts of a fictional TV drama. Be harsh, not generous. A score of 10 means zero issues of any kind. Most drafts should score between 5 and 9.  You will receive the episode synopsis, the spoiler level, the requested dialect, the platforms, and the generated posts. Compare the posts against the synopsis.  STEP 1 - Extract: list every concrete plot event, object, discovery, secret, and character action in the synopsis.  STEP 2 - Spoiler check (most important): - Spoiler level \"None\": any mention of a concrete event, object, discovery or secret from the synopsis is a violation, even phrased as a teaser or a question. Only general emotions, mood, family tension and open questions are allowed. One violation or more: score 5 or lower and approved false. - Spoiler level \"Light\": a setup or conflict may be hinted, but any outcome, twist, identity, or specific hidden fact is a violation. One violation or more: score 6 or lower and approved false. - Open-ended questions and emotional teasers that do NOT mention a specific event, object, discovery, or secret from the synopsis are allowed. Do not flag them. - Quote the exact violating phrase in \"issues\".  STEP 3 - Other checks, deduct 1-2 points each: wrong dialect, caption over the platform character limit, placeholder text such as \"platform name\", hashtags with years or numbers, off-brand tone.  Return ONLY valid JSON, exactly this shape: {\"score\":0,\"approved\":false,\"issues\":[],\"fix_instructions\":\"\"}  Rules for the fields: approved is true only if score is 7 or higher and there are no spoiler violations. In fix_instructions, name the exact phrases to remove and tell the writer to replace them with emotion-only teasers. If there are no issues, issues is [] and fix_instructions is \"\".",
+          "maxOutputTokens": 2048,
+          "temperature": 0.2,
+          "thinkingBudget": 0
+        }
+      },
+      "id": "64ec1f47-db8d-4346-aa5b-8aeca5d24401",
+      "name": "Reviewer",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        208
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "Gemini account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function getText(j) {\n  if (j.content && j.content.parts) return j.content.parts.map(function (p) { return p.text || \"\"; }).join(\"\");\n  if (Array.isArray(j.candidates) && j.candidates[0] && j.candidates[0].content) return j.candidates[0].content.parts.map(function (p) { return p.text || \"\"; }).join(\"\");\n  if (typeof j.text === \"string\") return j.text;\n  if (typeof j.output === \"string\") return j.output;\n  if (typeof j.data === \"string\") return j.data;\n  return JSON.stringify(j);\n}\nfunction safeParse(raw) {\n  var s = String(raw).replace(/```json/gi, \"\").replace(/```/g, \"\").trim();\n  var a = s.indexOf(\"{\"); var b = s.lastIndexOf(\"}\");\n  if (a === -1 || b === -1) return null;\n  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }\n}\nvar state = $(\"Parse Generated Posts\").last().json;\nvar j = $input.first().json;\nvar r = (j && typeof j.score !== \"undefined\") ? j : safeParse(getText(j));\nvar score = 0; var issues = []; var fix = \"\";\nif (!r) {\n  issues = [\"Reviewer returned invalid JSON\"];\n  fix = \"Re-check spoilers, platform length limits, tone and dialect consistency.\";\n} else {\n  score = Number(r.score); if (isNaN(score)) score = 0;\n  score = Math.max(0, Math.min(10, score));\n  issues = Array.isArray(r.issues) ? r.issues : [String(r.issues || \"\")].filter(Boolean);\n  fix = String(r.fix_instructions || \"\");\n}\nif (state.parse_error) { score = 0; issues.push(state.parse_error); }\nvar passed = score >= 7;\nvar retries = Number(state.retry_count) || 0;\nvar needs_retry = !passed && retries < 2;\nvar manual_edit = !passed && retries >= 2;\nreturn [{ json: Object.assign({}, state, { score: score, issues: issues, approved_by_reviewer: passed, review_fix_instructions: fix, needs_retry: needs_retry, manual_edit: manual_edit }) }];"
+      },
+      "id": "50519c70-4351-4643-9604-f7f4a217c5d3",
+      "name": "Parse Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.needs_retry }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "20ccb70a-fdeb-475a-88a7-95a404495338",
+      "name": "Needs Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1",
+              "name": "retry_count",
+              "value": "={{ $json.retry_count + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "r2",
+              "name": "fix_instructions",
+              "value": "={{ $json.review_fix_instructions || ($json.issues || []).join(\"; \") }}",
+              "type": "string"
+            },
+            {
+              "id": "r3",
+              "name": "previous_posts",
+              "value": "={{ JSON.stringify($json.posts) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4237d38a-b085-4f82-83b0-e55580faa36c",
+      "name": "Retry Counter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1616,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var s = $input.first().json;\n\nfunction esc(t) {\n  return String(t == null ? \"\" : t)\n    .replace(/([_*`\\[])/g, \"\\\\$1\")\n    .replace(/[<>&]/g, \" \");\n}\n\nvar lines = [];\n\nif (s.manual_edit) lines.push(\"NEEDS MANUAL EDIT - reviewer did not approve after 2 retries\");\nlines.push(\"Series: \" + esc(s.series) + \" | Episode \" + esc(s.episode));\nlines.push(\"Review score: \" + s.score + \"/10 | Retries: \" + s.retry_count);\nif (s.issues && s.issues.length) lines.push(\"Issues: \" + esc(s.issues.join(\"; \")));\nlines.push(\"\");\n\n(s.posts || []).forEach(function (p) {\n  lines.push(\"[\" + esc(p.platform) + \"]\");\n  lines.push(\"Hook: \" + esc(p.hook));\n  lines.push(esc(p.caption));\n  lines.push(esc((p.hashtags || []).join(\" \")));\n  lines.push(\"CTA: \" + esc(p.cta) + \" | Best time: \" + esc(p.best_post_time));\n  lines.push(\"\");\n});\n\nvar preview = lines.join(\"\\n\");\nif (preview.length > 3500) {\n  preview = preview.slice(0, 3500);\n  var cut = preview.lastIndexOf(\"\\n\");\n  if (cut > 0) preview = preview.slice(0, cut);\n  preview += \"\\n...(truncated)\";\n}\n\nreturn [{ json: Object.assign({}, s, { preview: preview }) }];"
+      },
+      "id": "bbb43f2b-37c7-42ad-ae60-2e277d0c0d07",
+      "name": "Build Preview",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        128
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "message": "={{ $json.preview }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Approve",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "ae179cae-a254-4497-bb97-954796f90dcc",
+      "name": "Telegram Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        128
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "p1",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4cced31-166c-494c-b94b-b01b28e6f179",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var s = $(\"Build Preview\").first().json;\nvar date = new Date().toISOString().slice(0, 10);\nvar status = s.manual_edit ? \"Approved - manual edit flagged\" : \"Approved\";\nreturn s.posts.map(function (p) {\n  return { json: {\n    date: date, series: s.series, episode: String(s.episode), platform: p.platform,\n    caption: p.caption, hashtags: p.hashtags.join(\" \"), hook: p.hook, cta: p.cta,\n    best_post_time: p.best_post_time, review_score: s.score, status: status\n  } };\n});"
+      },
+      "id": "f1352212-41b0-44c4-8f87-e7cf53474390",
+      "name": "Build Calendar Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "cachedResultName": "AI Content Studio",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Content Calendar"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "series": "={{ $json.series }}",
+            "episode": "={{ $json.episode }}",
+            "platform": "={{ $json.platform }}",
+            "caption": "={{ $json.caption }}",
+            "hashtags": "={{ $json.hashtags }}",
+            "hook": "={{ $json.hook }}",
+            "cta": "={{ $json.cta }}",
+            "best_post_time": "={{ $json.best_post_time }}",
+            "review_score": "={{ $json.review_score }}",
+            "status": "={{ $json.status }}"
+          },
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "series",
+              "displayName": "series",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "episode",
+              "displayName": "episode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "platform",
+              "displayName": "platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "hashtags",
+              "displayName": "hashtags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "hook",
+              "displayName": "hook",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "cta",
+              "displayName": "cta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "best_post_time",
+              "displayName": "best_post_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "review_score",
+              "displayName": "review_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b67d6e95-12bc-4d2c-84dd-7bf15119ef30",
+      "name": "Append to Content Calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1776,
+        192
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "team@example.com",
+        "subject": "=Approved promo content: {{ $(\"Build Preview\").first().json.series }} - Episode {{ $(\"Build Preview\").first().json.episode }}",
+        "emailType": "text",
+        "message": "=Promo content was approved and added to the Content Calendar.\n\nSeries: {{ $(\"Build Preview\").first().json.series }}\nEpisode: {{ $(\"Build Preview\").first().json.episode }}\nPlatforms: {{ $(\"Build Preview\").first().json.platforms }}\nReview score: {{ $(\"Build Preview\").first().json.score }}/10\nRetries: {{ $(\"Build Preview\").first().json.retry_count }}\n{{ $(\"Build Preview\").first().json.manual_edit ? \"NOTE: flagged for manual edit before posting.\" : \"\" }}\n\nPosts in this batch: {{ $(\"Build Calendar Rows\").all().length }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "2868fecb-2c88-4b88-9e3f-051d4059ea71",
+      "name": "Email Team Summary",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": null,
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "cachedResultName": "AI Content Studio",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now.toISO() }}",
+            "series": "={{ $(\"Build Preview\").first().json.series }}",
+            "episode": "={{ $(\"Build Preview\").first().json.episode }}",
+            "retries": "={{ $(\"Build Preview\").first().json.retry_count }}",
+            "score": "={{ $(\"Build Preview\").first().json.score }}",
+            "final_status": "={{ $(\"Telegram Approval\").first().json.data.approved ? ($(\"Build Preview\").first().json.manual_edit ? \"Approved (manual edit flagged)\" : \"Approved\") : \"Rejected\" }}"
+          },
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "series",
+              "displayName": "series",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "episode",
+              "displayName": "episode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "retries",
+              "displayName": "retries",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "final_status",
+              "displayName": "final_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a57404b1-a1a9-47c8-b9bc-8c227b55b119",
+      "name": "Append to Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2032,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Episode Promo Form": {
+      "main": [
+        [
+          {
+            "node": "Prepare Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Inputs": {
+      "main": [
+        [
+          {
+            "node": "Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate": {
+      "main": [
+        [
+          {
+            "node": "Parse Generated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated Posts": {
+      "main": [
+        [
+          {
+            "node": "Reviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reviewer": {
+      "main": [
+        [
+          {
+            "node": "Parse Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Review": {
+      "main": [
+        [
+          {
+            "node": "Needs Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Retry?": {
+      "main": [
+        [
+          {
+            "node": "Retry Counter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Preview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Counter": {
+      "main": [
+        [
+          {
+            "node": "Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Preview": {
+      "main": [
+        [
+          {
+            "node": "Telegram Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Approval": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Build Calendar Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append to Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Calendar Rows": {
+      "main": [
+        [
+          {
+            "node": "Append to Content Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Content Calendar": {
+      "main": [
+        [
+          {
+            "node": "Email Team Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Team Summary": {
+      "main": [
+        [
+          {
+            "node": "Append to Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [
+    {
+      "id": "a568a0fb-af81-4306-ab7e-12feb97ad6f4",
+      "name": "Generate and review",
+      "nodeIds": [
+        "2e63f625-a224-466d-a7b3-62328ca71970",
+        "f17c853c-ba7e-4cc9-afa8-fbdbb0c05ce5",
+        "64ec1f47-db8d-4346-aa5b-8aeca5d24401",
+        "50519c70-4351-4643-9604-f7f4a217c5d3",
+        "20ccb70a-fdeb-475a-88a7-95a404495338",
+        "4237d38a-b085-4f82-83b0-e55580faa36c"
+      ],
+      "description": "Drafts posts per platform, scores them against spoiler, length, tone and dialect rules, retries up to twice"
+    },
+    {
+      "id": "57bb2ba7-98a9-4e6d-8d39-60ef5ae13344",
+      "name": "Human approval",
+      "nodeIds": [
+        "bbb43f2b-37c7-42ad-ae60-2e277d0c0d07",
+        "ae179cae-a254-4497-bb97-954796f90dcc",
+        "d4cced31-166c-494c-b94b-b01b28e6f179"
+      ],
+      "description": "Sends a readable preview to Telegram and waits for Approve or Reject"
+    },
+    {
+      "id": "187d9254-d320-4f15-bc07-0a41632e6f42",
+      "name": "Save approved content",
+      "nodeIds": [
+        "f1352212-41b0-44c4-8f87-e7cf53474390",
+        "b67d6e95-12bc-4d2c-84dd-7bf15119ef30",
+        "2868fecb-2c88-4b88-9e3f-051d4059ea71"
+      ],
+      "description": "Adds one calendar row per platform and emails the team a summary"
+    }
+  ],
+  "tags": []
+}

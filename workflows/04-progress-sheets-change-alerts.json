@@ -1,0 +1,727 @@
+{
+  "name": "Progress Sheets Change Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lab-changes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "96d0f4d8-68c2-4ae2-8cf7-6cc589a06380",
+      "name": "Receive Sheet Edit Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "secret-ok",
+              "leftValue": "={{ $json.headers['x-secret'] }}",
+              "rightValue": "YOUR_SHARED_SECRET",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7aa48b97-f72d-4409-94ae-29d6c97d7c97",
+      "name": "Secret Header Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        272,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Changes Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.body.timestamp || $now.toISO() }}",
+            "sheet_name": "={{ $json.body.sheet_name }}",
+            "cell": "={{ $json.body.cell }}",
+            "old_value": "={{ $json.body.old_value }}",
+            "new_value": "={{ $json.body.new_value }}",
+            "editor_email": "={{ $json.body.editor_email }}",
+            "file_url": "={{ $json.body.file_url }}",
+            "notified": "FALSE"
+          },
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sheet_name",
+              "displayName": "sheet_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cell",
+              "displayName": "cell",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "old_value",
+              "displayName": "old_value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "new_value",
+              "displayName": "new_value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "editor_email",
+              "displayName": "editor_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_url",
+              "displayName": "file_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notified",
+              "displayName": "notified",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b5def7a9-29f1-4e58-a266-a8b3d1682a4e",
+      "name": "Append Change To Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        496,
+        128
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "596b5088-9929-4374-9159-740b5eb7fdcb",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": false, \"error\": \"unauthorized\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "0127583d-bd60-43da-ad0d-ef254a7d1540",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        496,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "id": "c662b3b5-5815-466b-8c52-bbf43b5509b4",
+      "name": "Daily 18:00 Digest",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Changes Log"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "id": "1638e392-74ed-4d17-ac3f-6e6cb9649faf",
+      "name": "Read Changes Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        448
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const isReal = (j) => j && Object.keys(j).length > 0;\nconst rows = $input.all().map(i => i.json).filter(j => isReal(j) && j.row_number)\n  .filter(j => String(j.notified).trim().toUpperCase() !== 'TRUE');\nif (rows.length === 0) {\n  return [{ json: { count: 0 } }];\n}\nconst esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst groups = {};\nfor (const r of rows) {\n  const key = (r.sheet_name || '(unknown sheet)') + ' | ' + (r.editor_email || '(unknown editor)');\n  (groups[key] = groups[key] || []).push(r);\n}\nconst blocks = [];\nconst htmlBlocks = [];\nconst summaryLines = [];\nfor (const key of Object.keys(groups)) {\n  const list = groups[key];\n  const [sheet, editor] = key.split(' | ');\n  const lines = list.map(r => '- ' + r.cell + ': \"' + (r.old_value === undefined || r.old_value === '' ? '(empty)' : r.old_value) + '\" -> \"' + (r.new_value === undefined || r.new_value === '' ? '(empty)' : r.new_value) + '\"');\n  const link = list[0].file_url ? '\\n' + list[0].file_url : '';\n  blocks.push('Sheet: ' + sheet + '\\nEditor: ' + editor + ' (' + list.length + ' change(s))\\n' + lines.join('\\n') + link);\n  htmlBlocks.push('<h3>' + esc(sheet) + ' - ' + esc(editor) + ' (' + list.length + ')</h3><ul>' + list.map(r => '<li><b>' + esc(r.cell) + '</b>: ' + esc(r.old_value) + ' &rarr; ' + esc(r.new_value) + '</li>').join('') + '</ul>' + (list[0].file_url ? '<p><a href=\"' + esc(list[0].file_url) + '\">Open file</a></p>' : ''));\n  summaryLines.push(sheet + ' edited by ' + editor + ': ' + list.length + ' change(s) in cells ' + list.map(r => r.cell).join(', '));\n}\nreturn [{ json: {\n  count: rows.length,\n  rowNumbers: rows.map(r => r.row_number),\n  blocks,\n  html: htmlBlocks.join(''),\n  summaryInput: summaryLines.join('\\n'),\n} }];"
+      },
+      "id": "5d0f9390-7504-49bd-ad9d-d0eabec5aac2",
+      "name": "Build Change Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        448
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-changes",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6c9ea1f7-0dcf-47cc-bf34-7e708adaef57",
+      "name": "Any Unnotified Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a 2-3 line English summary of today's edits to the lab progress sheets for the professor. Use ONLY this structured data, do not invent anything:\n{{ $('Build Change Digest').first().json.summaryInput }}",
+        "batching": {}
+      },
+      "id": "489e3186-80f5-4134-9f60-24c733fe1526",
+      "name": "Gemini Summary (optional)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1360,
+        576
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "04aebf0f-1b39-4ed0-b3a9-4804e2de9f82",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "Gemini account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Build Change Digest').first().json;\nlet summary = '';\ntry { summary = ($input.first().json.text || '').trim(); } catch (e) { summary = ''; }\nconst header = 'Lab sheet changes (' + d.count + ')' + (summary ? '\\n' + summary : '') + '\\n';\nconst MAX = 3800;\nconst chunks = [];\nlet cur = header;\nfor (const b of d.blocks) {\n  let block = b.length > MAX ? b.slice(0, MAX - 20) + '\\n...(truncated)' : b;\n  if ((cur + '\\n\\n' + block).length > MAX) { chunks.push(cur); cur = block; }\n  else { cur = cur + '\\n\\n' + block; }\n}\nchunks.push(cur);\nconst fullHtml = (summary ? '<p><i>' + summary.replace(/</g, '&lt;') + '</i></p>' : '') + d.html;\nreturn chunks.map(t => ({ json: { text: t, fullHtml, count: d.count } }));"
+      },
+      "id": "54906df9-9faf-455c-9923-8669318c3093",
+      "name": "Format Messages (split under 4096 chars)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        688
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b764f44e-8732-4e3c-9a7a-dbbc02eedd0e",
+      "name": "Telegram Change Digest",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        688
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_PROFESSOR_EMAIL",
+        "subject": "=Lab sheet changes ({{ $('Format Messages (split under 4096 chars)').first().json.count }})",
+        "message": "={{ $('Format Messages (split under 4096 chars)').first().json.fullHtml }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "66517e1b-554f-4330-ba4c-be9ce7614e33",
+      "name": "Email Change Digest (optional)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2160,
+        688
+      ],
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": null,
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Build Change Digest').first().json;\nreturn d.rowNumbers.map(n => ({ json: { row_number: n, notified: 'TRUE' } }));"
+      },
+      "id": "12cd839c-d730-4f77-bf63-539587e743ab",
+      "name": "Prepare Rows To Mark Notified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        576
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Lab Assistant (select YOUR_SHEET_ID)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Changes Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "notified": "={{ $json.notified }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "notified",
+              "displayName": "notified",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "37373b67-c594-4680-91fa-3ce6cd33136a",
+      "name": "Mark Rows Notified = TRUE",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2432,
+        576
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Progress Sheets Change Alerts\nBranch 1 (webhook, POST /lab-changes): the Google Apps Script sends each edit as JSON {sheet_name, cell, old_value, new_value, editor_email, file_url, timestamp} with header x-secret. Wrong/missing secret -> 401. Valid -> appended to the \"Changes Log\" tab with notified = FALSE, then 200 {ok:true}.\nBranch 2 (daily 18:00 Africa/Cairo): reads Changes Log, takes rows where notified is not TRUE, groups by sheet and editor, optional Gemini summary (non-blocking), sends Telegram (split under 4096 chars) and optional Gmail, then sets notified = TRUE. No changes -> nothing is sent.\nRows are matched on row_number (the sheet row), which is unique and survives through the digest.\n\nConfigure:\n- Replace YOUR_SHARED_SECRET in \"Secret Header Valid?\" (same value as in the Apps Script).\n- Replace YOUR_TELEGRAM_CHAT_ID and YOUR_PROFESSOR_EMAIL; pick the \"Lab Assistant\" spreadsheet (YOUR_SHEET_ID) in every Sheets node.\n- Use the PRODUCTION webhook URL (publish the workflow) in the Apps Script.\n- Delete/disable the Gmail node if you only want Telegram.\n- Set the workflow timezone to Africa/Cairo.\n- Attach the Error Alert workflow in Settings > Error workflow.\n\n---\nThis template was made by Basmala Taha",
+        "height": 480,
+        "width": 560,
+        "color": 3
+      },
+      "id": "1892938f-277d-47f9-9ab2-95fb686afa18",
+      "name": "Sticky Note - Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        -400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Sheet Edit Webhook": {
+      "main": [
+        [
+          {
+            "node": "Secret Header Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secret Header Valid?": {
+      "main": [
+        [
+          {
+            "node": "Append Change To Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401 Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Change To Log": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 18:00 Digest": {
+      "main": [
+        [
+          {
+            "node": "Read Changes Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Changes Log": {
+      "main": [
+        [
+          {
+            "node": "Build Change Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Change Digest": {
+      "main": [
+        [
+          {
+            "node": "Any Unnotified Changes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Unnotified Changes?": {
+      "main": [
+        [
+          {
+            "node": "Gemini Summary (optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Summary (optional)": {
+      "main": [
+        [
+          {
+            "node": "Format Messages (split under 4096 chars)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Summary (optional)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Messages (split under 4096 chars)": {
+      "main": [
+        [
+          {
+            "node": "Telegram Change Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Change Digest": {
+      "main": [
+        [
+          {
+            "node": "Email Change Digest (optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Change Digest (optional)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Rows To Mark Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Rows To Mark Notified": {
+      "main": [
+        [
+          {
+            "node": "Mark Rows Notified = TRUE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Africa/Cairo"
+  },
+  "meta": {},
+  "nodeGroups": [
+    {
+      "id": "a5d5e299-7d9c-410d-adfb-d894b31451a3",
+      "name": "Log incoming edit",
+      "nodeIds": [
+        "7aa48b97-f72d-4409-94ae-29d6c97d7c97",
+        "0127583d-bd60-43da-ad0d-ef254a7d1540",
+        "b5def7a9-29f1-4e58-a266-a8b3d1682a4e",
+        "596b5088-9929-4374-9159-740b5eb7fdcb"
+      ],
+      "description": "Checks the shared secret from the Apps Script, rejects bad calls with 401, otherwise logs the edit as not yet notified"
+    },
+    {
+      "id": "570c3949-e8cd-47c0-a2c5-f1f04590ef65",
+      "name": "Find unnotified changes",
+      "nodeIds": [
+        "1638e392-74ed-4d17-ac3f-6e6cb9649faf",
+        "5d0f9390-7504-49bd-ad9d-d0eabec5aac2",
+        "6c9ea1f7-0dcf-47cc-bf34-7e708adaef57"
+      ],
+      "description": "Daily at 18:00 reads the log and groups unreported edits by sheet and editor; stops quietly when none"
+    },
+    {
+      "id": "00b90121-9718-4bb3-ad69-d86ec3e6106c",
+      "name": "Send change digest",
+      "nodeIds": [
+        "489e3186-80f5-4134-9f60-24c733fe1526",
+        "04aebf0f-1b39-4ed0-b3a9-4804e2de9f82",
+        "54906df9-9faf-455c-9923-8669318c3093",
+        "b764f44e-8732-4e3c-9a7a-dbbc02eedd0e",
+        "66517e1b-554f-4330-ba4c-be9ce7614e33"
+      ],
+      "description": "Adds an optional AI summary, then sends the digest to the professor on Telegram and optionally by email"
+    },
+    {
+      "id": "7b3978f8-2e35-4c66-b35f-5274eeb2d038",
+      "name": "Mark as notified",
+      "nodeIds": [
+        "12cd839c-d730-4f77-bf63-539587e743ab",
+        "37373b67-c594-4680-91fa-3ce6cd33136a"
+      ],
+      "description": "Flags every reported log row as notified so tomorrow's digest only shows new edits"
+    }
+  ],
+  "tags": []
+}
